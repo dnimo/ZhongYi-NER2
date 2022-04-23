@@ -1,4 +1,5 @@
 ![loge](img/loge-1.png)
+[English Version](README_EN.md)
 # 基于Bert编码器的指针网络中医古籍命名实体标注模型
 ## 作者信息
 姓名：张国庆  
