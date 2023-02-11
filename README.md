@@ -1,9 +1,9 @@
-[English Version](README_EN.md)  
+<p>[English Version](README_EN.md) </p> 
 ![loge](img/loge-1.png)
 # 基于Bert编码器的指针网络中医古籍命名实体标注模型
 ## 作者信息
 姓名：张国庆  
-大学：山东中医药大学、2020届微软学生大使  
+机构：山东中医药大学\2020届微软学生大使
 专业：数据科学于大数据技术专业  
 领域：自然语言处理、数字医疗服务  
 个人网站：https://dnimo.github.io
