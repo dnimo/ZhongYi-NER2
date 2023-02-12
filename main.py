@@ -56,9 +56,10 @@ class Model(nn.Module):
 
 
 def train_epoch():
-    Model.train()
-    train_losses = 0
+    # Model.train()
+    # train_losses = 0
     for batch_index, batch_dict in enumerate(data_generator(train_data)):
-
+        print(batch_dict, batch_index)
         pass
 
+train_epoch()
