@@ -17,8 +17,8 @@ def list_find(list1, list2):
 
 
 def seq_padding(X, padding=0):
-    L = [len(x) for x in X]
-    ML = max(L)
+    # L = [len(x) for x in X]
+    ML = 514
     return np.array(
         [
             np.concatenate([x, [padding] * (ML - len(x))]) if len(x) < ML else x for x in X
@@ -39,7 +39,7 @@ def seq_padding(X, padding=0):
 #     random_order = json.loads(codecs.open('/data/random_order_train.json', 'r', encoding='utf8'))
 
 class data_generator:
-    def __init__(self, data, batch_size=10):
+    def __init__(self, data, batch_size):
         self.data = data
         self.batch_size = batch_size
         self.steps = len(self.data) // self.batch_size
@@ -53,11 +53,10 @@ class data_generator:
         while True:
             idxs = list(range(len(self.data)))
             np.random.shuffle(idxs)
-            T1, T2, N1, N2 = [], [], [], []
+            T, N1, N2 = [], [], []
             for i in idxs:
                 d = self.data[i]
                 text = d['text'][:maxlen]
-                print(type(text))
                 tokens = Ourtokenizr.tokenize(text)
                 Setner = []
                 keys = []
@@ -71,18 +70,16 @@ class data_generator:
                         #     items[key] = []
                         # items[key].append()
                 t = Ourtokenizr.encode(text)
-                T1.append(t)
-                T2.append(t)
+                T.append(np.array(t))
                 n1, n2 = np.zeros(len(tokens)), np.zeros(len(tokens))
                 for j in keys:
                     n1[j[0]] = 1
                     n2[j[1] - 1] = 1
                 N1.append(n1)
                 N2.append(n2)
-                if len(T1) == self.batch_size or i == idxs[-1]:
-                    T1 = seq_padding(T1)
-                    T2 = seq_padding(T2)
+                if len(T) == self.batch_size or i == idxs[-1]:
+                    T = seq_padding(T)
                     N1 = seq_padding(N1)
                     N2 = seq_padding(N2)
-                    yield [T1, T2, N1, N2], None
-                    T1, T2, N1, N2 = [], [], [], []
+                    yield [T, N1, N2], None
+                    T, N1, N2 = [], [], []
