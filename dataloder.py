@@ -1,10 +1,12 @@
 import json
 import os
 import numpy as np
+import torch
 from transformers import BertTokenizer
 
 maxlen = 512
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 Ourtokenizr = BertTokenizer.from_pretrained("ethanyt/guwenbert-base")
 
 
@@ -81,5 +83,5 @@ class data_generator:
                     T = seq_padding(T)
                     N1 = seq_padding(N1)
                     N2 = seq_padding(N2)
-                    yield [T, N1, N2], None
+                    yield [T, N1, N2]
                     T, N1, N2 = [], [], []
