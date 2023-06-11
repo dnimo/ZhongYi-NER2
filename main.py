@@ -13,7 +13,7 @@ from dataloder import data_generator
 import time
 
 now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-Ourtokenizr = BertTokenizer.from_pretrained("ethanyt/guwenbert-base")
+Ourtokenizer = BertTokenizer.from_pretrained("ethanyt/guwenbert-base")
 device = torch.device('cuda:9' if torch.cuda.is_available() else 'cpu')
 
 MODEL_PATH = './guwenbert-base/'
@@ -80,7 +80,7 @@ def train_epoch():
         n2 = torch.unsqueeze(n2, 2)
         pn1, pn2 = NER(t_in)
         # mask = Lambda(lambda x: torch.cast(torch.greater(torch.expand_dims(x, 2), 0), 'float32'))(t_in)
-        n1_loss = nn.CrossEntropyLoss()
+        n1_loss = nn.BCEWithLogitsLoss()
         n1_loss = n1_loss(n1, pn1)
         # n1_loss = torch.sum(n1_loss * mask) / torch.sum(mask)
         n2_loss = nn.CrossEntropyLoss()
@@ -90,23 +90,24 @@ def train_epoch():
         loss.backward()
         optimizer.step()
         print(loss)
-    torch.save(NER, 'NER_'+ now +'.pth')
+    torch.save(NER, 'NER_' + now + '.pth')
+
 
 # train_epoch()
 
 def extract_items(text_in):
-    _token = Ourtokenizr.tokenize(text_in)
-    _t = Ourtokenizr.encode(first=text_in)
+    _token = Ourtokenizer.tokenize(text_in)
+    _t = Ourtokenizer.encode(first=text_in)
     _t = np.array([_t])
     _pn1, _pn2 = NER(_t)
-    _pn1, _pn2 = np.where(_pn1[0]>0.5)[0], np.where(_pn2[0]>0.4)[0]
-    _NER = []
+    _pn1, _pn2 = np.where(_pn1[0] > 0.5)[0], np.where(_pn2[0] > 0.4)[0]
+    _NER = set()
     for i in _pn1:
         j = _pn2[_pn2 >= i]
         if len(j) > 0:
             j = j[0]
             _NERs = text_in[i - 1: j]
-            _NER.append((_NERs, i, j))
+            _NER.add(_NERs)
     if _NER:
         return _NER
     else:
@@ -118,26 +119,27 @@ def evaluate():
     A, B, C = 1e-10, 1e-10, 1e-10
     F = open('', 'w', encoding='utf-8')
     for d in dev_data:
-        R = set(extract_items(d['text']))
+        R = extract_items(d['text'])
         T = set()
         for iterm in d['ner']:
-            T.add(tuple(iterm))
+            T.add(iterm)
         A += len(R & T)
         B += len(R)
         C += len(T)
         ner = json.dumps(
             {
                 'text': d['text'],
-                'ner_list':[i for i in T],
-                'ner_list_pred':[i for i in R],
-                'new':[i for i in R - T]
-                'lack':[i for i in T - R]
+                'ner_list': [i for i in T],
+                'ner_list_pred': [i for i in R],
+                'new': [i for i in R - T],
+                'lack': [i for i in T - R]
             }, ensure_ascii=False, indent=4
         )
         F.write(ner + '\n')
     F.close()
     print('f1: %.4f, precision: %.4f, recall: %.4f\n' % (2 * A / (B + C), A / B, A / C))
     # return 2 * A / (B + C), A / B, A / C
+
 
 if __name__ == '__main__':
     train_epoch()

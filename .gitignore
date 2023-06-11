@@ -1,1 +1,8 @@
 /venv/
+/module/
+/data/
+/guwenbert-base/
+.DS_Store
+.idea
+__pycache__
+/test
