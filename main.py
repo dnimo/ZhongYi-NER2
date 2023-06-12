@@ -16,30 +16,16 @@ from Modules.Email import Email
 from torch.utils.data import DataLoader
 
 # Notice
-mail = Email(receivers="zhangguoqingself@outlook.com")
+mail = Email(receivers="guoqingzhang@kuhp.kyoto-u.ac.jp")
 
 dist.init_process_group(backend="nccl", init_method='tcp://localhost:23456', rank=0, world_size=1)
 
 now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-Ourtokenizer = BertTokenizer.from_pretrained("ethanyt/guwenbert-base")
+Ourtokenizer = BertTokenizer.from_pretrained("guwenbert-base")
 
 MODEL_PATH = './guwenbert-base/'
 
 model_config = BertConfig.from_pretrained("guwenbert-base")
-# model_config.output_hidden_states = True
-# model_config.output_attentions = True
-
-# add guwenBert dict
-
-# dict_path = './guwenbert-base/vocab.txt'
-#
-# token_dict = {}
-#
-# with codecs.open(dict_path, 'r', 'utf8') as reader:
-#     for line in reader:
-#         token = line.strip()
-#         token_dict[token] = len(token_dict)
-
 
 train_data = []
 with codecs.open('./data/train_data.json', 'r', encoding='utf8') as reader:
@@ -58,12 +44,15 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.BertNER = BertModel.from_pretrained(MODEL_PATH, config=model_config)
         self.Liner = nn.Linear(768, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, t):
         t = self.BertNER(t).last_hidden_state
         # 对T进行操作，增加一个channel的纬度
         pn1 = self.Liner(t)
+        pn1 = self.sigmod(pn1)
         pn2 = self.Liner(t)
+        pn2 = self.sigmoid(pn2)
 
         return pn1, pn2
 
