@@ -10,6 +10,6 @@ from Modules.Email import Email
 
 mail = Email(receivers="zhangguoqingself@outlook.com")
 
-mail.generator(text="这是一封测试\n邮件", subject="this is a test message")
+mail.generator(text="这是一封测试邮件", subject="this is a test message")
 
 mail.send()

@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from transformers import BertTokenizer
 
+
 maxlen = 512
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 Ourtokenizr = BertTokenizer.from_pretrained("ethanyt/guwenbert-base")
 
 
@@ -40,7 +40,7 @@ def seq_padding(X, padding=0):
 # else:
 #     random_order = json.loads(codecs.open('/data/random_order_train.json', 'r', encoding='utf8'))
 
-class data_generator:
+class DataIndex():
     def __init__(self, data, batch_size):
         self.data = data
         self.batch_size = batch_size
@@ -52,36 +52,35 @@ class data_generator:
         return self.steps
 
     def __iter__(self):
-        while True:
-            idxs = list(range(len(self.data)))
-            np.random.shuffle(idxs)
-            T, N1, N2 = [], [], []
-            for i in idxs:
-                d = self.data[i]
-                text = d['text'][:maxlen]
-                tokens = Ourtokenizr.tokenize(text)
-                Setner = []
-                keys = []
-                for ner in d['ner']:
-                    Setner.append(Ourtokenizr.tokenize(ner))
-                for nner in Setner:
-                    Nerid = list_find(tokens, nner)
-                    if Nerid != -1:
-                        keys.append([Nerid, Nerid + len(nner)])
-                        # if key not in items:
-                        #     items[key] = []
-                        # items[key].append()
-                t = Ourtokenizr.encode(text)
-                T.append(np.array(t))
-                n1, n2 = np.zeros(len(tokens)), np.zeros(len(tokens))
-                for j in keys:
-                    n1[j[0]] = 1
-                    n2[j[1] - 1] = 1
-                N1.append(n1)
-                N2.append(n2)
-                if len(T) == self.batch_size or i == idxs[-1]:
-                    T = seq_padding(T)
-                    N1 = seq_padding(N1)
-                    N2 = seq_padding(N2)
-                    yield [T, N1, N2]
-                    T, N1, N2 = [], [], []
+        idxs = list(range(len(self.data)))
+        np.random.shuffle(idxs)
+        T, N1, N2 = [], [], []
+        for i in idxs:
+            d = self.data[i]
+            text = d['text'][:maxlen]
+            tokens = Ourtokenizr.tokenize(text)
+            Setner = []
+            keys = []
+            for ner in d['ner']:
+                Setner.append(Ourtokenizr.tokenize(ner))
+            for nner in Setner:
+                Nerid = list_find(tokens, nner)
+                if Nerid != -1:
+                    keys.append([Nerid, Nerid + len(nner)])
+                    # if key not in items:
+                    #     items[key] = []
+                    # items[key].append()
+            t = Ourtokenizr.encode(text)
+            T.append(np.array(t))
+            n1, n2 = np.zeros(len(tokens)), np.zeros(len(tokens))
+            for j in keys:
+                n1[j[0]] = 1
+                n2[j[1] - 1] = 1
+            N1.append(n1)
+            N2.append(n2)
+            if len(T) == self.batch_size or i == idxs[-1]:
+                T = seq_padding(T)
+                N1 = seq_padding(N1)
+                N2 = seq_padding(N2)
+                yield T, N1, N2
+                T, N1, N2 = [], [], []
