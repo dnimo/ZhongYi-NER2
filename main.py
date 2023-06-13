@@ -1,11 +1,11 @@
 import numpy as np
+import os
 import torch
 import codecs
 import json
 import logging
 import torch.nn as nn
 from tqdm import tqdm
-# from metrics import f1_score, bad_case
 from torchvision.transforms import Lambda
 import torch.optim as optim
 from transformers import BertTokenizer, BertModel, BertConfig
@@ -13,28 +13,27 @@ from dataloder import DataIndex
 import time
 import torch.distributed as dist
 from Modules.Email import Email
-from torch.utils.data import DataLoader
 
 # Notice
 mail = Email(receivers="guoqingzhang@kuhp.kyoto-u.ac.jp")
 
-dist.init_process_group(backend="nccl", init_method='tcp://localhost:23456', rank=0, world_size=1)
+os.environ['CUDA_VISIBLE_DEVICES'] = '1,2,3,4,5'
+# dist.init_process_group(backend='nccl')
 
 now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-Ourtokenizer = BertTokenizer.from_pretrained("guwenbert-base")
 
-MODEL_PATH = './guwenbert-base/'
-
-model_config = BertConfig.from_pretrained("guwenbert-base")
-
-train_data = []
-with codecs.open('./data/train_data.json', 'r', encoding='utf8') as reader:
-    train_data = json.load(reader)
+MODEL_PATH = 'ethanyt/guwenbert-base'
+Ourtokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
+model_config = BertConfig.from_pretrained(MODEL_PATH)
 
 dev_data = []
 with codecs.open('./data/dev_data_clean.json', 'r', encoding='utf8') as reader:
     dev_data = json.load(reader)
 
+train_data = []
+with codecs.open('./data/train_data.json', 'r', encoding='utf8') as reader:
+    train_data = json.load(reader)
+    reader.close()
 
 # with codecs.open('./data/temp.json', 'w', encoding='utf8') as writer:
 #     json.dump(train_data, writer, indent=4, ensure_ascii=False)
@@ -48,31 +47,21 @@ class Model(nn.Module):
 
     def forward(self, t):
         t = self.BertNER(t).last_hidden_state
-        # 对T进行操作，增加一个channel的纬度
         pn1 = self.Liner(t)
-        pn1 = self.sigmod(pn1)
+        pn1 = self.sigmoid(pn1)
         pn2 = self.Liner(t)
         pn2 = self.sigmoid(pn2)
 
         return pn1, pn2
 
 
-# 实例化模型
-
-NER = Model().cuda()
-NER = nn.parallel.DistributedDataParallel(NER, find_unused_parameters=True)
-
-optimizer = optim.Adam(NER.parameters(), lr=2e-5)
-
-
 def train_epoch():
     NER.train()
-    for t_in, n1, n2 in tqdm(DataIndex(train_data, batch_size=8)):
+    for t_in, n1, n2 in tqdm(DataIndex(train_data, batch_size=16)):
         optimizer.zero_grad()
         t_in = torch.as_tensor(t_in, device=torch.device('cuda'))
         n1 = torch.as_tensor(n1, device=torch.device('cuda'))
         n2 = torch.as_tensor(n2, device=torch.device('cuda'))
-        torch.as_tensor(n2)
         n1 = torch.unsqueeze(n1, 2)
         n2 = torch.unsqueeze(n2, 2)
         pn1, pn2 = NER(t_in)
@@ -86,7 +75,7 @@ def train_epoch():
         loss = (n1_loss + n2_loss) / 2
         loss.backward()
         optimizer.step()
-    return loss
+    return 'loss:%.4f\n' % loss
 
 
 def extract_items(text_in):
@@ -102,9 +91,9 @@ def extract_items(text_in):
     for i in _pn1:
         j = _pn2[_pn2 >= i]
         if len(j) > 0:
-            for k in j:
-                _NERs = text_in[i:k]
-                _NER.add(_NERs)
+            j = j[0]
+            _NERs = text_in[i - 1:j]
+            _NER.add(_NERs)
     if _NER:
         return _NER
     else:
@@ -136,20 +125,21 @@ def evaluate():
         F.write(ner + '\n')
     F.close()
     msg = 'f1: %.4f, precision: %.4f, recall: %.4f\n' % (2 * A / (B + C), A / B, A / C)
-    # mail.generator(text=msg, subject="Model's Performence")
-    # mail.send()
-    # print(msg)
     return msg
-    # return 2 * A / (B + C), A / B, A / C
 
 
 if __name__ == '__main__':
+    device = torch.device('cuda')
+    # NER = nn.parallel.DistributedDataParallel(NER, find_unused_parameters=True)
+    NER = Model().to(device)
+    NER = nn.DataParallel(NER)
+    optimizer = optim.Adam(NER.parameters(), lr=2e-5)
     epoch = 10
     final_loss = ''
     for i in range(epoch):
         print("The " + str(i) + " epoch.")
         print(train_epoch())
-        if i == 9:
+        if i == epoch-1:
             final_loss = train_epoch()
     torch.save(NER, 'NER_best.pth')
     message = evaluate()
